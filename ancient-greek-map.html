@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Map of the Peloponnesian War</title>
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Georgia', serif;
+        }
+
+        #map {
+            height: 100vh;
+            width: 100vw;
+        }
+
+        .map-title {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 10px 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+
+        .map-title h1 {
+            margin: 0;
+            font-size: 24px;
+            color: #2c3e50;
+        }
+
+        .map-title p {
+            margin: 5px 0 0 0;
+            font-size: 14px;
+            color: #7f8c8d;
+        }
+
+        .settlement-marker {
+            background: none;
+            border: none;
+        }
+
+        .leaflet-popup-content-wrapper {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 8px;
+        }
+
+        .leaflet-popup-content {
+            font-family: 'Georgia', serif;
+            font-size: 14px;
+        }
+
+        .settlement-name {
+            font-weight: bold;
+            color: #8b4513;
+            font-size: 16px;
+        }
+
+        .settlement-details {
+            margin-top: 5px;
+            color: #555;
+            font-size: 13px;
+        }
+
+        .search-container {
+            position: absolute;
+            top: 80px;
+            left: 10px;
+            z-index: 1000;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            min-width: 300px;
+            max-width: 350px;
+        }
+
+        #searchInput {
+            width: 100%;
+            padding: 8px 12px;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            font-family: 'Georgia', serif;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+
+        #searchInput:focus {
+            outline: none;
+            border-color: #8b4513;
+        }
+
+        #searchResults {
+            max-height: 400px;
+            overflow-y: auto;
+            margin-top: 8px;
+        }
+
+        .search-result-item {
+            padding: 8px 10px;
+            cursor: pointer;
+            border-bottom: 1px solid #eee;
+            transition: background-color 0.2s;
+        }
+
+        .search-result-item:hover {
+            background-color: #f5f5f5;
+        }
+
+        .search-result-item:last-child {
+            border-bottom: none;
+        }
+
+        .search-result-name {
+            font-weight: bold;
+            color: #8b4513;
+            font-size: 14px;
+        }
+
+        .search-result-details {
+            font-size: 12px;
+            color: #666;
+            margin-top: 2px;
+        }
+
+        .no-results {
+            padding: 10px;
+            text-align: center;
+            color: #999;
+            font-style: italic;
+        }
+
+        .info-button {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 1000;
+            background: rgba(255, 255, 255, 0.95);
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            font-size: 20px;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            color: #2c3e50;
+            transition: background-color 0.2s;
+        }
+
+        .info-button:hover {
+            background: rgba(255, 255, 255, 1);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: 10% auto;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+            width: 90%;
+            max-width: 600px;
+            font-family: 'Georgia', serif;
+        }
+
+        .modal-content h2 {
+            margin-top: 0;
+            color: #2c3e50;
+        }
+
+        .modal-content p {
+            line-height: 1.6;
+            color: #555;
+        }
+
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            line-height: 20px;
+            cursor: pointer;
+        }
+
+        .close:hover,
+        .close:focus {
+            color: #000;
+        }
+    </style>
+</head>
+<body>
+    <div class="map-title">
+        <h1>Map of the Peloponnesian War</h1>
+        <p>Locations from Thucydides's <i>History of the Peloponnesian War</i></p>
+    </div>
+
+    <button class="info-button" id="infoButton" title="About this map">ℹ️</button>
+
+    <div id="infoModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>About This Map</h2>
+            <p>This interactive map visualizes all geographic locations mentioned in Thucydides's <i>History of the Peloponnesian War</i>.</p>
+
+            <p><strong>Why I created this:</strong> While reading Thucydides's history, I wanted an easy way to see where all the locations were on a map. Rather than searching for each place individually, I decided to create a comprehensive map of the entire text.</p>
+
+            <p><strong>How it was made:</strong> This entire application was built using <strong>Claude Code</strong> (Anthropic's AI coding assistant) without writing a single line of code myself. The process included:</p>
+            <ul>
+                <li>Extracting all 1,000+ locations from the full text of Thucydides</li>
+                <li>Using AI to geocode each location with accurate coordinates</li>
+                <li>Cleaning the data to remove non-locations (people, events, etc.)</li>
+                <li>Deduplicating entries (e.g., "Athens" vs "Athenians")</li>
+                <li>Building the interactive map interface</li>
+            </ul>
+
+            <p><strong>Features:</strong> Search for any location, click markers for details, and explore the geography of the ancient Greek world during the Peloponnesian War (431-404 BC).</p>
+
+            <p style="margin-top: 20px; font-size: 12px; color: #888;">This map is part of my web development portfolio, showcasing AI-assisted development capabilities.</p>
+        </div>
+    </div>
+
+    <div class="search-container">
+        <input type="text" id="searchInput" placeholder="Search for locations..." autocomplete="off">
+        <div id="searchResults"></div>
+    </div>
+
+    <div id="map"></div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- Settlements data -->
+    <script src="settlements.js"></script>
+
+    <script>
+        // Initialize the map centered on Greece
+        const map = L.map('map', {
+            center: [38.0, 24.0], // Centered on Greece
+            zoom: 6,
+            minZoom: 4,
+            maxZoom: 12
+        });
+
+        // Use unlabeled basemap that shows geographic features without modern labels
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+            subdomains: 'abcd',
+            maxZoom: 12
+        }).addTo(map);
+
+        // Add markers for each settlement and store references
+        const settlementMarkers = {};
+        settlements.forEach(settlement => {
+            const marker = L.circleMarker([settlement.lat, settlement.lng], {
+                radius: settlement.type.includes('Major') ? 8 : 5,
+                fillColor: settlement.type.includes('Major') ? '#8b0000' :
+                           settlement.type.includes('Sanctuary') ? '#daa520' :
+                           settlement.type.includes('Pass') ? '#006400' :
+                           settlement.type.includes('Fort') ? '#4b0082' :
+                           settlement.type.includes('Port') ? '#1e90ff' :
+                           settlement.type.includes('Deme') ? '#8b4513' :
+                           settlement.type.includes('Island') ? '#20b2aa' :
+                           settlement.type.includes('Region') ? '#696969' : '#b8860b',
+                color: '#000',
+                weight: 1,
+                opacity: 1,
+                fillOpacity: 0.8
+            }).addTo(map);
+
+            // Create popup content
+            const popupContent = `
+                <div class="settlement-name">${settlement.name}</div>
+                <div class="settlement-details">
+                    <strong>Type:</strong> ${settlement.type}<br>
+                    <strong>Modern:</strong> ${settlement.modern}
+                </div>
+            `;
+
+            marker.bindPopup(popupContent);
+
+            // Add tooltip with settlement name
+            marker.bindTooltip(settlement.name, {
+                permanent: false,
+                direction: 'top',
+                className: 'settlement-tooltip'
+            });
+
+            // Store marker reference with settlement data
+            settlementMarkers[settlement.name] = {
+                marker: marker,
+                settlement: settlement
+            };
+        });
+
+        // Geographic features information overlay
+        const geographicInfo = `
+            <div style="background: rgba(255,255,255,0.9); padding: 15px; border-radius: 5px; max-width: 300px;">
+                <h3 style="margin-top:0; color: #2c3e50;">Geographic Features</h3>
+                <p style="margin: 5px 0;"><strong>Seas:</strong> Aegean Sea, Ionian Sea, Mediterranean Sea, Black Sea (Pontos Euxeinos)</p>
+                <p style="margin: 5px 0;"><strong>Major Regions:</strong> Attica, Peloponnese, Boeotia, Thessaly, Ionia, Magna Graecia</p>
+                <p style="margin: 5px 0;"><strong>Mountain Ranges:</strong> Mount Olympus, Pindus Mountains, Taygetus</p>
+                <p style="margin: 5px 0;"><strong>Rivers:</strong> Achelous, Alpheus, Eurotas</p>
+            </div>
+        `;
+
+        // Add legend
+        const legend = L.control({ position: 'bottomright' });
+        legend.onAdd = function(map) {
+            const div = L.DomUtil.create('div', 'info legend');
+            div.style.background = 'rgba(255,255,255,0.9)';
+            div.style.padding = '10px';
+            div.style.borderRadius = '5px';
+            div.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)';
+            div.innerHTML = `
+                <h4 style="margin: 0 0 10px 0; color: #2c3e50;">Legend</h4>
+                <div><span style="display:inline-block; width:12px; height:12px; background:#8b0000; border-radius:50%; margin-right:5px;"></span> Major Polis</div>
+                <div><span style="display:inline-block; width:12px; height:12px; background:#b8860b; border-radius:50%; margin-right:5px;"></span> Polis</div>
+                <div><span style="display:inline-block; width:12px; height:12px; background:#daa520; border-radius:50%; margin-right:5px;"></span> Sanctuary</div>
+                <div><span style="display:inline-block; width:12px; height:12px; background:#4b0082; border-radius:50%; margin-right:5px;"></span> Fort</div>
+                <div><span style="display:inline-block; width:12px; height:12px; background:#1e90ff; border-radius:50%; margin-right:5px;"></span> Port</div>
+                <div><span style="display:inline-block; width:12px; height:12px; background:#20b2aa; border-radius:50%; margin-right:5px;"></span> Island</div>
+                <div><span style="display:inline-block; width:12px; height:12px; background:#006400; border-radius:50%; margin-right:5px;"></span> Pass</div>
+            `;
+            return div;
+        };
+        legend.addTo(map);
+
+        // Search functionality
+        const searchInput = document.getElementById('searchInput');
+        const searchResults = document.getElementById('searchResults');
+
+        function performSearch(query) {
+            if (!query || query.trim().length === 0) {
+                searchResults.innerHTML = '';
+                return;
+            }
+
+            const searchTerm = query.toLowerCase().trim();
+
+            // Filter settlements by name or modern name
+            const results = settlements.filter(settlement => {
+                return settlement.name.toLowerCase().includes(searchTerm) ||
+                       settlement.modern.toLowerCase().includes(searchTerm);
+            });
+
+            // Display results
+            displaySearchResults(results, searchTerm);
+        }
+
+        function displaySearchResults(results, searchTerm) {
+            if (results.length === 0) {
+                searchResults.innerHTML = '<div class="no-results">No locations found</div>';
+                return;
+            }
+
+            // Sort results: exact matches first, then alphabetically
+            results.sort((a, b) => {
+                const aNameLower = a.name.toLowerCase();
+                const bNameLower = b.name.toLowerCase();
+                const aModernLower = a.modern.toLowerCase();
+                const bModernLower = b.modern.toLowerCase();
+
+                // Check for exact matches
+                const aExact = aNameLower === searchTerm || aModernLower === searchTerm;
+                const bExact = bNameLower === searchTerm || bModernLower === searchTerm;
+
+                if (aExact && !bExact) return -1;
+                if (!aExact && bExact) return 1;
+
+                // Check for starts with
+                const aStarts = aNameLower.startsWith(searchTerm) || aModernLower.startsWith(searchTerm);
+                const bStarts = bNameLower.startsWith(searchTerm) || bModernLower.startsWith(searchTerm);
+
+                if (aStarts && !bStarts) return -1;
+                if (!aStarts && bStarts) return 1;
+
+                // Otherwise alphabetically
+                return a.name.localeCompare(b.name);
+            });
+
+            // Limit to top 20 results
+            const limitedResults = results.slice(0, 20);
+
+            searchResults.innerHTML = limitedResults.map(settlement => `
+                <div class="search-result-item" data-settlement="${settlement.name}">
+                    <div class="search-result-name">${settlement.name}</div>
+                    <div class="search-result-details">${settlement.type} • Modern: ${settlement.modern}</div>
+                </div>
+            `).join('');
+
+            // Add click handlers to results
+            document.querySelectorAll('.search-result-item').forEach(item => {
+                item.addEventListener('click', function() {
+                    const settlementName = this.getAttribute('data-settlement');
+                    zoomToSettlement(settlementName);
+                });
+            });
+        }
+
+        function zoomToSettlement(settlementName) {
+            const data = settlementMarkers[settlementName];
+            if (data) {
+                const { marker, settlement } = data;
+
+                // Zoom to the location
+                map.setView([settlement.lat, settlement.lng], 9, {
+                    animate: true,
+                    duration: 1
+                });
+
+                // Open the popup
+                setTimeout(() => {
+                    marker.openPopup();
+                }, 500);
+
+                // Clear search
+                searchInput.value = '';
+                searchResults.innerHTML = '';
+            }
+        }
+
+        // Add event listener for search input
+        searchInput.addEventListener('input', function(e) {
+            performSearch(e.target.value);
+        });
+
+        // Add enter key support
+        searchInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                const firstResult = searchResults.querySelector('.search-result-item');
+                if (firstResult) {
+                    const settlementName = firstResult.getAttribute('data-settlement');
+                    zoomToSettlement(settlementName);
+                }
+            }
+        });
+
+        console.log(`Loaded ${settlements.length} ancient Greek settlements`);
+
+        // Modal functionality
+        const modal = document.getElementById('infoModal');
+        const infoBtn = document.getElementById('infoButton');
+        const closeBtn = document.getElementsByClassName('close')[0];
+
+        infoBtn.onclick = function() {
+            modal.style.display = 'block';
+        };
+
+        closeBtn.onclick = function() {
+            modal.style.display = 'none';
+        };
+
+        window.onclick = function(event) {
+            if (event.target == modal) {
+                modal.style.display = 'none';
+            }
+        };
+    </script>
+</body>
+</html>
