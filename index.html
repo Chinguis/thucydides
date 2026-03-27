@@ -177,6 +177,23 @@
             background-color: rgba(0,0,0,0.06);
         }
 
+        .tile-switcher select {
+            padding: 5px 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-family: 'Georgia', serif;
+            font-size: 13px;
+            color: #2c3e50;
+            background: rgba(255,255,255,0.95);
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            outline: none;
+        }
+
+        .tile-switcher select:hover {
+            border-color: #aaa;
+        }
+
         .info-button {
             position: absolute;
             top: 10px;
@@ -290,12 +307,76 @@
 
         L.control.zoom({ position: 'bottomleft' }).addTo(map);
 
-        // Use unlabeled basemap that shows geographic features without modern labels
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', {
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-            subdomains: 'abcd',
-            maxZoom: 12
-        }).addTo(map);
+        // Available tile sets
+        const TILE_SETS = [
+            {
+                label: 'Satellite',
+                layer: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                    attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+                })
+            },
+            {
+                label: 'Watercolor',
+                layer: L.tileLayer('https://tiles.stadiamaps.com/tiles/stamen_watercolor/{z}/{x}/{y}.{ext}', {
+                    minZoom: 1, maxZoom: 16, ext: 'jpg',
+                    attribution: '&copy; <a href="https://www.stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a href="https://www.stamen.com/" target="_blank">Stamen Design</a> &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                })
+            },
+            {
+                label: 'Terrain',
+                layer: L.tileLayer('https://tiles.stadiamaps.com/tiles/stamen_terrain_background/{z}/{x}/{y}{r}.{ext}', {
+                    minZoom: 0, maxZoom: 18, ext: 'png',
+                    attribution: '&copy; <a href="https://www.stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a href="https://www.stamen.com/" target="_blank">Stamen Design</a> &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                })
+            },
+            {
+                label: 'Shaded Relief',
+                layer: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Shaded_Relief/MapServer/tile/{z}/{y}/{x}', {
+                    maxZoom: 13,
+                    attribution: 'Tiles &copy; Esri &mdash; Source: Esri'
+                })
+            },
+            {
+                label: 'Modern borders',
+                layer: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+                    maxZoom: 16,
+                    attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ'
+                })
+            },
+            {
+                label: 'GeoportailFrance',
+                layer: L.tileLayer('https://data.geopf.fr/wmts?REQUEST=GetTile&SERVICE=WMTS&VERSION=1.0.0&STYLE={style}&TILEMATRIXSET=PM&FORMAT={format}&LAYER=ORTHOIMAGERY.ORTHOPHOTOS&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}', {
+                    bounds: [[-75, -180], [81, 180]], minZoom: 2, maxZoom: 19,
+                    format: 'image/jpeg', style: 'normal',
+                    attribution: '<a target="_blank" href="https://www.geoportail.gouv.fr/">Geoportail France</a>'
+                })
+            },
+        ];
+
+        let currentTileLayer = TILE_SETS[0].layer;
+        currentTileLayer.addTo(map);
+
+        // Tile switcher control
+        const tileSwitcher = L.control({ position: 'bottomleft' });
+        tileSwitcher.onAdd = function() {
+            const div = L.DomUtil.create('div', 'tile-switcher');
+            const select = L.DomUtil.create('select', '', div);
+            TILE_SETS.forEach((ts, i) => {
+                const opt = document.createElement('option');
+                opt.value = i;
+                opt.textContent = ts.label;
+                select.appendChild(opt);
+            });
+            L.DomEvent.disableClickPropagation(div);
+            L.DomEvent.on(select, 'change', function() {
+                map.removeLayer(currentTileLayer);
+                currentTileLayer = TILE_SETS[this.value].layer;
+                currentTileLayer.addTo(map);
+                currentTileLayer.bringToBack();
+            });
+            return div;
+        };
+        tileSwitcher.addTo(map);
 
         const CATEGORIES = [
             { key: 'Major Polis', color: '#8b0000', test: t => t.includes('Major') },
