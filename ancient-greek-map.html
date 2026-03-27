@@ -73,7 +73,7 @@
 
         .search-container {
             position: absolute;
-            top: 80px;
+            top: 10px;
             left: 10px;
             z-index: 1000;
             background: rgba(255, 255, 255, 0.95);
@@ -137,6 +137,44 @@
             text-align: center;
             color: #999;
             font-style: italic;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            padding: 4px 6px;
+            margin: 2px -6px;
+            border-radius: 4px;
+            cursor: pointer;
+            user-select: none;
+            transition: opacity 0.2s, background-color 0.2s;
+        }
+
+        .legend-item:hover {
+            background-color: rgba(0,0,0,0.06);
+        }
+
+        .legend-item.inactive {
+            opacity: 0.35;
+        }
+
+        .legend-reset {
+            display: none;
+            margin-top: 8px;
+            width: 100%;
+            padding: 4px 0;
+            background: none;
+            border: 1px solid #aaa;
+            border-radius: 4px;
+            font-family: 'Georgia', serif;
+            font-size: 12px;
+            color: #555;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .legend-reset:hover {
+            background-color: rgba(0,0,0,0.06);
         }
 
         .info-button {
@@ -223,18 +261,7 @@
 
             <p><strong>Why I created this:</strong> While reading Thucydides's history, I wanted an easy way to see where all the locations were on a map. Rather than searching for each place individually, I decided to create a comprehensive map of the entire text.</p>
 
-            <p><strong>How it was made:</strong> This entire application was built using <strong>Claude Code</strong> (Anthropic's AI coding assistant) without writing a single line of code myself. The process included:</p>
-            <ul>
-                <li>Extracting all 1,000+ locations from the full text of Thucydides</li>
-                <li>Using AI to geocode each location with accurate coordinates</li>
-                <li>Cleaning the data to remove non-locations (people, events, etc.)</li>
-                <li>Deduplicating entries (e.g., "Athens" vs "Athenians")</li>
-                <li>Building the interactive map interface</li>
-            </ul>
-
-            <p><strong>Features:</strong> Search for any location, click markers for details, and explore the geography of the ancient Greek world during the Peloponnesian War (431-404 BC).</p>
-
-            <p style="margin-top: 20px; font-size: 12px; color: #888;">This map is part of my web development portfolio, showcasing AI-assisted development capabilities.</p>
+            <p><strong>Features:</strong> Search for any location, click markers for details, and filter by location type using the legend. Explore the geography of the ancient Greek world during the Peloponnesian War (431-404 BC).</p>
         </div>
     </div>
 
@@ -257,8 +284,11 @@
             center: [38.0, 24.0], // Centered on Greece
             zoom: 6,
             minZoom: 4,
-            maxZoom: 12
+            maxZoom: 12,
+            zoomControl: false
         });
+
+        L.control.zoom({ position: 'bottomleft' }).addTo(map);
 
         // Use unlabeled basemap that shows geographic features without modern labels
         L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', {
@@ -267,19 +297,33 @@
             maxZoom: 12
         }).addTo(map);
 
+        const CATEGORIES = [
+            { key: 'Major Polis', color: '#8b0000', test: t => t.includes('Major') },
+            { key: 'Sanctuary',   color: '#daa520', test: t => t.includes('Sanctuary') },
+            { key: 'Pass',        color: '#006400', test: t => t.includes('Pass') },
+            { key: 'Fort',        color: '#4b0082', test: t => t.includes('Fort') },
+            { key: 'Port',        color: '#1e90ff', test: t => t.includes('Port') },
+            { key: 'Deme',        color: '#8b4513', test: t => t.includes('Deme') },
+            { key: 'Island',      color: '#20b2aa', test: t => t.includes('Island') },
+            { key: 'Region',      color: '#696969', test: t => t.includes('Region') },
+            { key: 'Polis',       color: '#b8860b', test: () => true },
+        ];
+
+        function getCategory(type) {
+            return CATEGORIES.find(c => c.test(type));
+        }
+
+        // All categories active by default
+        const activeCategories = new Set(CATEGORIES.map(c => c.key));
+        let pristine = true; // true until the user first interacts with the legend
+
         // Add markers for each settlement and store references
         const settlementMarkers = {};
         settlements.forEach(settlement => {
+            const cat = getCategory(settlement.type);
             const marker = L.circleMarker([settlement.lat, settlement.lng], {
-                radius: settlement.type.includes('Major') ? 8 : 5,
-                fillColor: settlement.type.includes('Major') ? '#8b0000' :
-                           settlement.type.includes('Sanctuary') ? '#daa520' :
-                           settlement.type.includes('Pass') ? '#006400' :
-                           settlement.type.includes('Fort') ? '#4b0082' :
-                           settlement.type.includes('Port') ? '#1e90ff' :
-                           settlement.type.includes('Deme') ? '#8b4513' :
-                           settlement.type.includes('Island') ? '#20b2aa' :
-                           settlement.type.includes('Region') ? '#696969' : '#b8860b',
+                radius: cat.key === 'Major Polis' ? 8 : 5,
+                fillColor: cat.color,
                 color: '#000',
                 weight: 1,
                 opacity: 1,
@@ -307,7 +351,8 @@
             // Store marker reference with settlement data
             settlementMarkers[settlement.name] = {
                 marker: marker,
-                settlement: settlement
+                settlement: settlement,
+                category: cat.key
             };
         });
 
@@ -322,7 +367,7 @@
             </div>
         `;
 
-        // Add legend
+        // Add interactive legend
         const legend = L.control({ position: 'bottomright' });
         legend.onAdd = function(map) {
             const div = L.DomUtil.create('div', 'info legend');
@@ -330,19 +375,69 @@
             div.style.padding = '10px';
             div.style.borderRadius = '5px';
             div.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)';
+            div.style.fontFamily = "'Georgia', serif";
+            div.style.fontSize = '13px';
+
             div.innerHTML = `
-                <h4 style="margin: 0 0 10px 0; color: #2c3e50;">Legend</h4>
-                <div><span style="display:inline-block; width:12px; height:12px; background:#8b0000; border-radius:50%; margin-right:5px;"></span> Major Polis</div>
-                <div><span style="display:inline-block; width:12px; height:12px; background:#b8860b; border-radius:50%; margin-right:5px;"></span> Polis</div>
-                <div><span style="display:inline-block; width:12px; height:12px; background:#daa520; border-radius:50%; margin-right:5px;"></span> Sanctuary</div>
-                <div><span style="display:inline-block; width:12px; height:12px; background:#4b0082; border-radius:50%; margin-right:5px;"></span> Fort</div>
-                <div><span style="display:inline-block; width:12px; height:12px; background:#1e90ff; border-radius:50%; margin-right:5px;"></span> Port</div>
-                <div><span style="display:inline-block; width:12px; height:12px; background:#20b2aa; border-radius:50%; margin-right:5px;"></span> Island</div>
-                <div><span style="display:inline-block; width:12px; height:12px; background:#006400; border-radius:50%; margin-right:5px;"></span> Pass</div>
+                <h4 style="margin: 0 0 8px 0; color: #2c3e50;">Legend</h4>
+                ${CATEGORIES.map(c => `
+                    <div class="legend-item" data-category="${c.key}">
+                        <span style="display:inline-block; width:12px; height:12px; background:${c.color}; border-radius:50%; margin-right:6px; flex-shrink:0;"></span>
+                        ${c.key}
+                    </div>
+                `).join('')}
+                <button class="legend-reset" id="legendReset">Reset filters</button>
             `;
+
+            L.DomEvent.disableClickPropagation(div);
+
+            div.querySelectorAll('.legend-item').forEach(item => {
+                item.addEventListener('click', function() {
+                    const cat = this.getAttribute('data-category');
+                    if (pristine) {
+                        // First interaction: isolate the clicked category
+                        pristine = false;
+                        activeCategories.clear();
+                        activeCategories.add(cat);
+                        div.querySelectorAll('.legend-item').forEach(el => {
+                            el.classList.toggle('inactive', el.getAttribute('data-category') !== cat);
+                        });
+                    } else {
+                        if (activeCategories.has(cat)) {
+                            activeCategories.delete(cat);
+                            this.classList.add('inactive');
+                        } else {
+                            activeCategories.add(cat);
+                            this.classList.remove('inactive');
+                        }
+                    }
+                    applyFilter();
+                    document.getElementById('legendReset').style.display =
+                        activeCategories.size === CATEGORIES.length ? 'none' : 'block';
+                });
+            });
+
+            div.querySelector('#legendReset').addEventListener('click', function() {
+                CATEGORIES.forEach(c => activeCategories.add(c.key));
+                div.querySelectorAll('.legend-item').forEach(el => el.classList.remove('inactive'));
+                pristine = true;
+                applyFilter();
+                this.style.display = 'none';
+            });
+
             return div;
         };
         legend.addTo(map);
+
+        function applyFilter() {
+            Object.values(settlementMarkers).forEach(({ marker, category }) => {
+                if (activeCategories.has(category)) {
+                    if (!map.hasLayer(marker)) marker.addTo(map);
+                } else {
+                    if (map.hasLayer(marker)) marker.remove();
+                }
+            });
+        }
 
         // Search functionality
         const searchInput = document.getElementById('searchInput');
