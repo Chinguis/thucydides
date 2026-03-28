@@ -100,6 +100,7 @@
         }
 
         #searchResults {
+            display: none;
             max-height: 400px;
             overflow-y: auto;
             margin-top: 8px;
@@ -177,7 +178,14 @@
             background-color: rgba(0,0,0,0.06);
         }
 
-        .tile-switcher select {
+        #tileSwitcher {
+            position: absolute;
+            bottom: 11px;
+            left: 60px;
+            z-index: 1000;
+        }
+
+        #tileSwitcher select {
             padding: 5px 8px;
             border: 1px solid #ccc;
             border-radius: 4px;
@@ -190,7 +198,7 @@
             outline: none;
         }
 
-        .tile-switcher select:hover {
+        #tileSwitcher select:hover {
             border-color: #aaa;
         }
 
@@ -201,10 +209,12 @@
             z-index: 1000;
             background: rgba(255, 255, 255, 0.95);
             border: none;
-            border-radius: 50%;
+            border-radius: 8px;
             width: 40px;
             height: 40px;
-            font-size: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             cursor: pointer;
             box-shadow: 0 2px 8px rgba(0,0,0,0.3);
             color: #2c3e50;
@@ -268,7 +278,13 @@
         <p>Locations from Thucydides's <i>History of the Peloponnesian War</i></p>
     </div>
 
-    <button class="info-button" id="infoButton" title="About this map">ℹ️</button>
+    <button class="info-button" id="infoButton" title="About this map">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="8" stroke-width="3"/>
+            <line x1="12" y1="12" x2="12" y2="16"/>
+        </svg>
+    </button>
 
     <div id="infoModal" class="modal">
         <div class="modal-content">
@@ -285,6 +301,10 @@
     <div class="search-container">
         <input type="text" id="searchInput" placeholder="Search for locations..." autocomplete="off">
         <div id="searchResults"></div>
+    </div>
+
+    <div id="tileSwitcher">
+        <select id="tileSelect"></select>
     </div>
 
     <div id="map"></div>
@@ -310,12 +330,6 @@
         // Available tile sets
         const TILE_SETS = [
             {
-                label: 'Satellite',
-                layer: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-                    attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
-                })
-            },
-            {
                 label: 'Watercolor',
                 layer: L.tileLayer('https://tiles.stadiamaps.com/tiles/stamen_watercolor/{z}/{x}/{y}.{ext}', {
                     minZoom: 1, maxZoom: 16, ext: 'jpg',
@@ -327,6 +341,12 @@
                 layer: L.tileLayer('https://tiles.stadiamaps.com/tiles/stamen_terrain_background/{z}/{x}/{y}{r}.{ext}', {
                     minZoom: 0, maxZoom: 18, ext: 'png',
                     attribution: '&copy; <a href="https://www.stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a href="https://www.stamen.com/" target="_blank">Stamen Design</a> &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                })
+            },
+            {
+                label: 'Satellite',
+                layer: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                    attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
                 })
             },
             {
@@ -356,27 +376,20 @@
         let currentTileLayer = TILE_SETS[0].layer;
         currentTileLayer.addTo(map);
 
-        // Tile switcher control
-        const tileSwitcher = L.control({ position: 'bottomleft' });
-        tileSwitcher.onAdd = function() {
-            const div = L.DomUtil.create('div', 'tile-switcher');
-            const select = L.DomUtil.create('select', '', div);
-            TILE_SETS.forEach((ts, i) => {
-                const opt = document.createElement('option');
-                opt.value = i;
-                opt.textContent = ts.label;
-                select.appendChild(opt);
-            });
-            L.DomEvent.disableClickPropagation(div);
-            L.DomEvent.on(select, 'change', function() {
-                map.removeLayer(currentTileLayer);
-                currentTileLayer = TILE_SETS[this.value].layer;
-                currentTileLayer.addTo(map);
-                currentTileLayer.bringToBack();
-            });
-            return div;
-        };
-        tileSwitcher.addTo(map);
+        // Populate and wire up tile switcher
+        const tileSelect = document.getElementById('tileSelect');
+        TILE_SETS.forEach((ts, i) => {
+            const opt = document.createElement('option');
+            opt.value = i;
+            opt.textContent = ts.label;
+            tileSelect.appendChild(opt);
+        });
+        tileSelect.addEventListener('change', function() {
+            map.removeLayer(currentTileLayer);
+            currentTileLayer = TILE_SETS[this.value].layer;
+            currentTileLayer.addTo(map);
+            currentTileLayer.bringToBack();
+        });
 
         const CATEGORIES = [
             { key: 'Major Polis', color: '#8b0000', test: t => t.includes('Major') },
@@ -527,6 +540,7 @@
         function performSearch(query) {
             if (!query || query.trim().length === 0) {
                 searchResults.innerHTML = '';
+                searchResults.style.display = 'none';
                 return;
             }
 
@@ -543,6 +557,7 @@
         }
 
         function displaySearchResults(results, searchTerm) {
+            searchResults.style.display = 'block';
             if (results.length === 0) {
                 searchResults.innerHTML = '<div class="no-results">No locations found</div>';
                 return;
@@ -611,6 +626,7 @@
                 // Clear search
                 searchInput.value = '';
                 searchResults.innerHTML = '';
+                searchResults.style.display = 'none';
             }
         }
 
