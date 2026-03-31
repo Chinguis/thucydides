@@ -312,8 +312,8 @@
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-    <!-- Settlements data -->
-    <script src="settlements.js"></script>
+    <!-- Cities data -->
+    <script src="cities.js"></script>
 
     <script>
         // Initialize the map centered on Greece
@@ -392,31 +392,19 @@
         });
 
         const CATEGORIES = [
-            { key: 'Major Polis', color: '#8b0000', test: t => t.includes('Major') },
-            { key: 'Sanctuary',   color: '#daa520', test: t => t.includes('Sanctuary') },
-            { key: 'Pass',        color: '#006400', test: t => t.includes('Pass') },
-            { key: 'Fort',        color: '#4b0082', test: t => t.includes('Fort') },
-            { key: 'Port',        color: '#1e90ff', test: t => t.includes('Port') },
-            { key: 'Deme',        color: '#8b4513', test: t => t.includes('Deme') },
-            { key: 'Island',      color: '#20b2aa', test: t => t.includes('Island') },
-            { key: 'Region',      color: '#696969', test: t => t.includes('Region') },
-            { key: 'Polis',       color: '#b8860b', test: () => true },
+            { key: 'City', color: '#b8860b' },
         ];
-
-        function getCategory(type) {
-            return CATEGORIES.find(c => c.test(type));
-        }
 
         // All categories active by default
         const activeCategories = new Set(CATEGORIES.map(c => c.key));
         let pristine = true; // true until the user first interacts with the legend
 
-        // Add markers for each settlement and store references
+        // Add markers for each city and store references
         const settlementMarkers = {};
-        settlements.forEach(settlement => {
-            const cat = getCategory(settlement.type);
-            const marker = L.circleMarker([settlement.lat, settlement.lng], {
-                radius: cat.key === 'Major Polis' ? 8 : 5,
+        cities.forEach(city => {
+            const cat = CATEGORIES[0];
+            const marker = L.circleMarker([city.lat, city.lng], {
+                radius: 5,
                 fillColor: cat.color,
                 color: '#000',
                 weight: 1,
@@ -426,26 +414,25 @@
 
             // Create popup content
             const popupContent = `
-                <div class="settlement-name">${settlement.name}</div>
+                <div class="settlement-name">${city.name}</div>
                 <div class="settlement-details">
-                    <strong>Type:</strong> ${settlement.type}<br>
-                    <strong>Modern:</strong> ${settlement.modern}
+                    <strong>Books:</strong> ${city.books.join(', ')}<br>
+                    <strong>Chapters:</strong> ${city.chapters.join(', ')}
                 </div>
             `;
 
             marker.bindPopup(popupContent);
 
-            // Add tooltip with settlement name
-            marker.bindTooltip(settlement.name, {
+            marker.bindTooltip(city.name, {
                 permanent: false,
                 direction: 'top',
                 className: 'settlement-tooltip'
             });
 
-            // Store marker reference with settlement data
-            settlementMarkers[settlement.name] = {
+            // Store marker reference with city data
+            settlementMarkers[city.name] = {
                 marker: marker,
-                settlement: settlement,
+                settlement: city,
                 category: cat.key
             };
         });
@@ -546,10 +533,8 @@
 
             const searchTerm = query.toLowerCase().trim();
 
-            // Filter settlements by name or modern name
-            const results = settlements.filter(settlement => {
-                return settlement.name.toLowerCase().includes(searchTerm) ||
-                       settlement.modern.toLowerCase().includes(searchTerm);
+            const results = cities.filter(city => {
+                return city.name.toLowerCase().includes(searchTerm);
             });
 
             // Display results
@@ -563,38 +548,31 @@
                 return;
             }
 
-            // Sort results: exact matches first, then alphabetically
+            // Sort results: exact matches first, then starts-with, then alphabetically
             results.sort((a, b) => {
-                const aNameLower = a.name.toLowerCase();
-                const bNameLower = b.name.toLowerCase();
-                const aModernLower = a.modern.toLowerCase();
-                const bModernLower = b.modern.toLowerCase();
+                const aLower = a.name.toLowerCase();
+                const bLower = b.name.toLowerCase();
 
-                // Check for exact matches
-                const aExact = aNameLower === searchTerm || aModernLower === searchTerm;
-                const bExact = bNameLower === searchTerm || bModernLower === searchTerm;
-
+                const aExact = aLower === searchTerm;
+                const bExact = bLower === searchTerm;
                 if (aExact && !bExact) return -1;
                 if (!aExact && bExact) return 1;
 
-                // Check for starts with
-                const aStarts = aNameLower.startsWith(searchTerm) || aModernLower.startsWith(searchTerm);
-                const bStarts = bNameLower.startsWith(searchTerm) || bModernLower.startsWith(searchTerm);
-
+                const aStarts = aLower.startsWith(searchTerm);
+                const bStarts = bLower.startsWith(searchTerm);
                 if (aStarts && !bStarts) return -1;
                 if (!aStarts && bStarts) return 1;
 
-                // Otherwise alphabetically
                 return a.name.localeCompare(b.name);
             });
 
             // Limit to top 20 results
             const limitedResults = results.slice(0, 20);
 
-            searchResults.innerHTML = limitedResults.map(settlement => `
-                <div class="search-result-item" data-settlement="${settlement.name}">
-                    <div class="search-result-name">${settlement.name}</div>
-                    <div class="search-result-details">${settlement.type} • Modern: ${settlement.modern}</div>
+            searchResults.innerHTML = limitedResults.map(city => `
+                <div class="search-result-item" data-settlement="${city.name}">
+                    <div class="search-result-name">${city.name}</div>
+                    <div class="search-result-details">Books: ${city.books.join(', ')}</div>
                 </div>
             `).join('');
 
@@ -646,7 +624,7 @@
             }
         });
 
-        console.log(`Loaded ${settlements.length} ancient Greek settlements`);
+        console.log(`Loaded ${cities.length} ancient Greek cities`);
 
         // Modal functionality
         const modal = document.getElementById('infoModal');
