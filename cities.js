@@ -277,7 +277,7 @@ const cities = [
   {"name": "Rhenea", "books": [1, 3], "chapters": [1, 11], "type": "city", "lat": 37.404106, "lng": 25.228039, "pleiades_match": "Rheneia (island)"},
   {"name": "Rhodes", "books": [8], "chapters": [24, 25], "type": "city", "lat": 36.17911, "lng": 27.972076, "pleiades_match": "Rhodos (island)"},
   {"name": "Rhoeteum", "books": [4, 8], "chapters": [13, 26], "type": "city", "lat": 40.009681, "lng": 26.303295, "pleiades_match": "Rhoiteion"},
-  {"name": "Salamis", "books": [1, 2, 3], "chapters": [1, 3, 4, 8, 9, 10], "type": "city", "lat": 35.179581, "lng": 33.902857, "pleiades_match": "Salamis/Konstantia"},
+  {"name": "Salamis", "books": [1, 2, 3], "chapters": [1, 3, 4, 8, 9, 10], "type": "city", "lat": 37.94267, "lng": 23.48434, "pleiades_match": "Salamis (island)"},
   {"name": "Samos", "books": [1, 3, 4, 7, 8], "chapters": [1, 4, 11, 14, 23, 24, 25, 26], "type": "city", "lat": 37.68825, "lng": 26.944483, "pleiades_match": "Samos (settlement)"},
   {"name": "Sane", "books": [4], "chapters": [14], "type": "city", "lat": 40.098381, "lng": 23.306117, "pleiades_match": "Sane"},
   {"name": "Sardis", "books": [1], "chapters": [4], "type": "city", "lat": 38.488314, "lng": 28.040286, "pleiades_match": " Sardis/Hyde?"},
